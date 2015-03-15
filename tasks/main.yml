@@ -1,2 +1,34 @@
 ---
-# tasks file for kibana
+- name: create kibana user
+  user: name=kibana system=yes home=/opt/kibana shell=/sbin/nologin state=present
+
+- name: get kibana tar file
+  get_url: url="{{ kibana_download_url }}" dest="/usr/local/src/{{ kibana_archive }}"
+  register: kibana_install
+
+- name: cleanup previous kibana version
+  file: path={{ kibana_home }} state=absent
+  when: kibana_install|changed
+
+- name: unarchive kibana
+  unarchive: src="/usr/local/src/{{ kibana_archive }}" dest=/usr/local/src copy=no
+  when: kibana_install|changed
+
+- name: install kibana
+  command: /bin/mv /usr/local/src/{{ kibana_base_name }} {{ kibana_home }} creates={{ kibana_home }}
+  when: kibana_install|changed
+
+- name: set kibana dir permissions
+  file: path={{ kibana_home }} owner=kibana group=kibana mode=755 recurse=yes
+
+- name: install kibana systemd service
+  template: src=kibana.service.j2 dest="/etc/systemd/system/kibana.service" owner=root group=root mode=755
+  when: ansible_os_family == 'RedHat' and ansible_distribution_major_version|int > 6
+
+- name: activate kibana service
+  service: name=kibana state=started enabled=yes
+  when: ansible_os_family == 'RedHat'
+
+- name: configure kibana
+  template: src=kibana.yml.j2 dest="{{ kibana_home }}/config/kibana.yml" owner=kibana group=kibana mode=644
+  notify: restart kibana
