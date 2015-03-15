@@ -32,3 +32,7 @@
 - name: configure kibana
   template: src=kibana.yml.j2 dest="{{ kibana_home }}/config/kibana.yml" owner=kibana group=kibana mode=644
   notify: restart kibana
+
+- name: configure httpd for kibana
+  template: src=kibana.conf.j2 dest=/etc/httpd/conf.d/kibana.conf owner=root group=root mode=644
+  notify: restart httpd
